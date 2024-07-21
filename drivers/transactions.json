@@ -1,0 +1,16 @@
+[
+    {
+        "id": "16992332870126",
+        "event_at": "2024-07-09T23:59:59.38662+00:00",
+        "category_id": "platform_ride_fee",
+        "category_name": "Комиссия сервиса за заказ",
+        "amount": "41.3200",
+        "currency_code": "RUB",
+        "description": "Комиссия сервиса по заказу Вешняковская улица, 41к1, подъезд 3",
+        "created_by": {
+            "identity": "platform"
+        },
+        "driver_profile_id": "f4ddcd5b1ef64c48bdbc60d6258a973a",
+        "order_id": "5d48a3c89b6c8278bd894e7255f588dd"
+    }
+]

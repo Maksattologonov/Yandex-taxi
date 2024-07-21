@@ -34,3 +34,23 @@ class DriverProfiles(BaseModel):
     car: Optional[Car] = None
     driver_profile: DriverProfile
     current_status: CurrentStatus
+
+
+class Transaction(BaseModel):
+    id: str
+    event_at: str
+    category_id: Optional[str]
+    category_name: Optional[str]
+    amount: float
+    currency_code: str
+    description: Optional[str]
+    created_by: Optional[str]
+    driver_profile_id: Optional[str]
+    order_id: Optional[str]
+
+
+class TransactionResponse(BaseModel):
+    transactions: List[Transaction]
+    cursor: Optional[str]
+
+

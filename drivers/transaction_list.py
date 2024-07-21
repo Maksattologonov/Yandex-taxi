@@ -1,8 +1,8 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 import requests
 import json
 import pandas as pd
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, ValidationError
 
 
 # Определяем Pydantic модели
@@ -14,9 +14,18 @@ class Transaction(BaseModel):
     amount: float = 0.0
     currency_code: str = ""
     description: Optional[str] = None
-    created_by: Optional[str] = None
+    created_by: Optional[Union[str, dict]] = None
     driver_profile_id: Optional[str] = None
     order_id: Optional[str] = None
+
+    # Конвертируем все поля в строки, где это необходимо
+    @staticmethod
+    def clean(transaction: dict) -> dict:
+        if isinstance(transaction.get('created_by'), dict):
+            transaction['created_by'] = json.dumps(transaction['created_by'])
+        if isinstance(transaction.get('order_id'), dict):
+            transaction['order_id'] = json.dumps(transaction['order_id'])
+        return transaction
 
 
 class TransactionResponse(BaseModel):
@@ -47,7 +56,7 @@ def fetch_transactions(cursor=None):
                 }
             }
         },
-        "limit": 100,
+        "limit": 10,
         "cursor": cursor
     }
 
@@ -60,38 +69,29 @@ def fetch_transactions(cursor=None):
         return None
 
 
-# Function to clean and validate transactions
-def clean_transaction(transaction: dict) -> dict:
-    if isinstance(transaction.get('created_by'), dict):
-        transaction['created_by'] = json.dumps(transaction['created_by'])
-    if isinstance(transaction.get('order_id'), dict):
-        transaction['order_id'] = json.dumps(transaction['order_id'])
-    return transaction
+# Recursive function to gather all transactions
+def get_all_transactions(cursor=None, all_transactions=None):
+    if all_transactions is None:
+        all_transactions = []
 
+    print(f"Fetching transactions with cursor: {cursor}")
+    data = fetch_transactions(cursor)
+    if not data:
+        return all_transactions
 
-# Function to gather all transactions
-def get_all_transactions():
-    all_transactions = []
-    cursor = None
+    cleaned_transactions = [Transaction.clean(txn) for txn in data.get('transactions', [])]
 
-    while True:
-        data = fetch_transactions(cursor)
-        if not data:
-            break
-
-        cleaned_transactions = [clean_transaction(txn) for txn in data.get('transactions', [])]
-
-        try:
-            transaction_response = TransactionResponse(transactions=cleaned_transactions, cursor=data.get('cursor'))
-            all_transactions.extend(transaction_response.transactions)
-            cursor = transaction_response.cursor
-            if not cursor:
-                break
-        except ValidationError as e:
-            print(f"Validation error: {e}")
-            break
-
-    return all_transactions
+    try:
+        transaction_response = TransactionResponse(transactions=cleaned_transactions, cursor=data.get('cursor'))
+        all_transactions.extend(transaction_response.transactions)
+        print(f"Fetched {len(transaction_response.transactions)} transactions, cursor: {transaction_response.cursor}")
+        if transaction_response.cursor:
+            return get_all_transactions(cursor=transaction_response.cursor, all_transactions=all_transactions)
+        else:
+            return all_transactions
+    except ValidationError as e:
+        print(f"Validation error: {e}")
+        return all_transactions
 
 
 # Fetch all transactions
@@ -100,7 +100,7 @@ transactions = get_all_transactions()
 # Convert transactions to a DataFrame and save to Excel
 if transactions:
     df = pd.DataFrame([txn.dict() for txn in transactions])
-    output_file = r'c:\Users\user\Desktop\transactions.xlsx'
+    output_file = r'F:\PycharmProjects\Yandex-taxi\drivers\transactions.xlsx'
     df.to_excel(output_file, index=False)
     print(f"Transactions saved to {output_file}")
 else:
